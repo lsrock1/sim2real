@@ -2,15 +2,17 @@ import os.path as osp
 import xml.etree.ElementTree as ET
 
 import mmcv
+from glob import glob
 import numpy as np
 from PIL import Image
+from mmdet.core import eval_map, eval_recalls
 
 from .builder import DATASETS
 from .custom import CustomDataset
 
 
 @DATASETS.register_module()
-class XMLDataset(CustomDataset):
+class AIRPLANEDataset(CustomDataset):
     """XML dataset for detection.
 
     Args:
@@ -18,11 +20,84 @@ class XMLDataset(CustomDataset):
             boxes in the images. If the size of a bounding box is less than
             ``min_size``, it would be add to ignored field.
     """
+    CLASSES = ('aeroplane',)
 
     def __init__(self, min_size=None, **kwargs):
-        super(XMLDataset, self).__init__(**kwargs)
+        super(AIRPLANEDataset, self).__init__(**kwargs)
         self.cat2label = {cat: i for i, cat in enumerate(self.CLASSES)}
         self.min_size = min_size
+
+    def evaluate(self,
+                 results,
+                 metric='mAP',
+                 logger=None,
+                 proposal_nums=(100, 300, 1000),
+                 iou_thr=0.5,
+                 scale_ranges=None):
+        """Evaluate in VOC protocol.
+
+        Args:
+            results (list[list | tuple]): Testing results of the dataset.
+            metric (str | list[str]): Metrics to be evaluated. Options are
+                'mAP', 'recall'.
+            logger (logging.Logger | str, optional): Logger used for printing
+                related information during evaluation. Default: None.
+            proposal_nums (Sequence[int]): Proposal number used for evaluating
+                recalls, such as recall@100, recall@1000.
+                Default: (100, 300, 1000).
+            iou_thr (float | list[float]): IoU threshold. It must be a float
+                when evaluating mAP, and can be a list when evaluating recall.
+                Default: 0.5.
+            scale_ranges (list[tuple], optional): Scale ranges for evaluating
+                mAP. If not specified, all bounding boxes would be included in
+                evaluation. Default: None.
+
+        Returns:
+            dict[str, float]: AP/recall metrics.
+        """
+
+        if not isinstance(metric, str):
+            assert len(metric) == 1
+            metric = metric[0]
+        allowed_metrics = ['mAP', 'recall']
+        if metric not in allowed_metrics:
+            raise KeyError(f'metric {metric} is not supported')
+        annotations = [self.get_ann_info(i) for i in range(len(self))]
+        eval_results = {}
+        if metric == 'mAP':
+            assert isinstance(iou_thr, float)
+            if self.year == 2007:
+                ds_name = 'voc07'
+            else:
+                ds_name = self.CLASSES
+            mean_ap, _ = eval_map(
+                results,
+                annotations,
+                scale_ranges=None,
+                iou_thr=iou_thr,
+                dataset=ds_name,
+                logger=logger)
+            eval_results['mAP'] = mean_ap
+        elif metric == 'recall':
+            gt_bboxes = [ann['bboxes'] for ann in annotations]
+            if isinstance(iou_thr, float):
+                iou_thr = [iou_thr]
+            recalls = eval_recalls(
+                gt_bboxes, results, proposal_nums, iou_thr, logger=logger)
+            for i, num in enumerate(proposal_nums):
+                for j, iou in enumerate(iou_thr):
+                    eval_results[f'recall@{num}@{iou}'] = recalls[i, j]
+            if recalls.shape[1] > 1:
+                ar = recalls.mean(axis=1)
+                for i, num in enumerate(proposal_nums):
+                    eval_results[f'AR@{num}'] = ar[i]
+        return eval_results
+
+    def __img_id_to_xml_path(self, img_id):
+        dirname, filename = img_id.split('@')
+        xml_path = osp.join(self.img_prefix, dirname,
+                            f'{filename}.xml')
+        return xml_path
 
     def load_annotations(self, ann_file):
         """Load annotation from XML style ann_file.
@@ -35,12 +110,13 @@ class XMLDataset(CustomDataset):
         """
 
         data_infos = []
-        img_ids = mmcv.list_from_file(ann_file)
-        for img_id in img_ids:
-            filename = f'JPEGImages/{img_id}.jpg'
-            xml_path = osp.join(self.img_prefix, 'Annotations',
-                                f'{img_id}.xml')
-            tree = ET.parse(xml_path, parser=ET.XMLParser(encoding="utf-8"))
+        xml_paths = glob(osp.join(self.img_prefix, '*', '*.xml'))
+        # img_ids = mmcv.list_from_file(ann_file)
+        for xml_path in xml_paths:
+            basedir = osp.basename(osp.dirname(xml_path))
+            img_id = f'{basedir}@{osp.basename(xml_path)[:-4]}'
+            filename = f'{basedir}/{osp.basename(xml_path)[:-4]}.png'
+            tree = ET.parse(xml_path)
             root = tree.getroot()
             size = root.find('size')
             width = 0
@@ -49,8 +125,7 @@ class XMLDataset(CustomDataset):
                 width = int(size.find('width').text)
                 height = int(size.find('height').text)
             else:
-                img_path = osp.join(self.img_prefix, 'JPEGImages',
-                                    '{}.jpg'.format(img_id))
+                img_path = osp.join(self.img_prefix, filename)
                 img = Image.open(img_path)
                 width, height = img.size
             data_infos.append(
@@ -66,12 +141,13 @@ class XMLDataset(CustomDataset):
                 continue
             if self.filter_empty_gt:
                 img_id = img_info['id']
-                xml_path = osp.join(self.img_prefix, 'Annotations',
-                                    f'{img_id}.xml')
+                xml_path = self.__img_id_to_xml_path(img_id)
                 tree = ET.parse(xml_path)
                 root = tree.getroot()
                 for obj in root.findall('object'):
                     name = obj.find('name').text
+                    # hardcode
+                    name = 'aeroplane'
                     if name in self.CLASSES:
                         valid_inds.append(i)
                         break
@@ -90,7 +166,7 @@ class XMLDataset(CustomDataset):
         """
 
         img_id = self.data_infos[idx]['id']
-        xml_path = osp.join(self.img_prefix, 'Annotations', f'{img_id}.xml')
+        xml_path = self.__img_id_to_xml_path(img_id)
         tree = ET.parse(xml_path)
         root = tree.getroot()
         bboxes = []
@@ -99,6 +175,8 @@ class XMLDataset(CustomDataset):
         labels_ignore = []
         for obj in root.findall('object'):
             name = obj.find('name').text
+            # hardcode
+            name = 'aeroplane'
             if name not in self.CLASSES:
                 continue
             label = self.cat2label[name]
@@ -156,11 +234,13 @@ class XMLDataset(CustomDataset):
 
         cat_ids = []
         img_id = self.data_infos[idx]['id']
-        xml_path = osp.join(self.img_prefix, 'Annotations', f'{img_id}.xml')
+        xml_path = self.__img_id_to_xml_path(img_id)
         tree = ET.parse(xml_path)
         root = tree.getroot()
         for obj in root.findall('object'):
             name = obj.find('name').text
+            # hardcode
+            name = 'aeroplane'
             if name not in self.CLASSES:
                 continue
             label = self.cat2label[name]
