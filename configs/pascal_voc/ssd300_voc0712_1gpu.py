@@ -4,7 +4,7 @@ _base_ = [
 ]
 model = dict(
     bbox_head=dict(
-        num_classes=20, anchor_generator=dict(basesize_ratio_range=(0.2,
+        num_classes=1, anchor_generator=dict(basesize_ratio_range=(0.2,
                                                                     0.9))))
 # dataset settings
 dataset_type = 'VOCDataset'
@@ -51,9 +51,9 @@ data = dict(
     samples_per_gpu=32,
     workers_per_gpu=6,
     train=dict(
-        type='RepeatDataset', times=10, dataset=dict(pipeline=train_pipeline)),
-    val=dict(pipeline=test_pipeline),
-    test=dict(pipeline=test_pipeline))
+        type='RepeatDataset', times=10, dataset=dict(pipeline=train_pipeline)),)
+    # val=dict(pipeline=test_pipeline),
+    # test=dict(pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=1e-3, momentum=0.9, weight_decay=5e-4)
 optimizer_config = dict()

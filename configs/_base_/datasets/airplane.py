@@ -13,17 +13,30 @@ train_pipeline = [
     dict(type='DefaultFormatBundle'),
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
 ]
+# test_pipeline = [
+#     dict(type='LoadImageFromFile'),
+#     dict(
+#         type='MultiScaleFlipAug',
+#         img_scale=(1000, 600),
+#         flip=False,
+#         transforms=[
+#             dict(type='Resize', keep_ratio=True),
+#             dict(type='RandomFlip'),
+#             dict(type='Normalize', **img_norm_cfg),
+#             dict(type='Pad', size_divisor=32),
+#             dict(type='ImageToTensor', keys=['img']),
+#             dict(type='Collect', keys=['img']),
+#         ])
+# ]
 test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(1000, 600),
+        img_scale=(300, 300),
         flip=False,
         transforms=[
-            dict(type='Resize', keep_ratio=True),
-            dict(type='RandomFlip'),
+            dict(type='Resize', keep_ratio=False),
             dict(type='Normalize', **img_norm_cfg),
-            dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
         ])
@@ -54,7 +67,7 @@ data = dict(
                 ann_file='data/VOCdevkit/' + 'VOC2007/ImageSets/Main/test.txt',
                 img_prefix='data/VOCdevkit/' + 'VOC2007/',
                 pipeline=test_pipeline)],
-        seperate_eval=False),
+        seperate_eval=True),
     test=dict(
         type='ConcatDataset',
         datasets=[
@@ -70,5 +83,5 @@ data = dict(
                 ann_file='data/VOCdevkit/' + 'VOC2007/ImageSets/Main/test.txt',
                 img_prefix='data/VOCdevkit/' + 'VOC2007/',
                 pipeline=test_pipeline)],
-            separate_eval=False))
-evaluation = dict(interval=1, metric='mAP')
+            separate_eval=True))
+# evaluation = dict(interval=1, metric='mAP')
