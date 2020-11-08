@@ -43,6 +43,15 @@ class CocoDataset(CustomDataset):
                'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock',
                'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush')
 
+    def __init__(self, **kwargs):
+        super(CocoDataset, self).__init__(**kwargs)
+        valid_inds = self._filter_imgs()
+        self.data_infos = [self.data_infos[i] for i in valid_inds]
+        if self.proposals is not None:
+            self.proposals = [self.proposals[i] for i in valid_inds]
+        # set group flag for the sampler
+        self._set_group_flag()
+
     def load_annotations(self, ann_file):
         """Load annotation from COCO style annotation file.
 

@@ -66,10 +66,10 @@ class AIRPLANEDataset(CustomDataset):
         eval_results = {}
         if metric == 'mAP':
             assert isinstance(iou_thr, float)
-            if self.year == 2007:
-                ds_name = 'voc07'
-            else:
-                ds_name = self.CLASSES
+            # if self.year == 2007:
+            ds_name = 'voc07'
+            # else:
+            #     ds_name = self.CLASSES
             mean_ap, _ = eval_map(
                 results,
                 annotations,

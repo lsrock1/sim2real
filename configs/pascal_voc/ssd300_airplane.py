@@ -6,6 +6,7 @@ model = dict(
     bbox_head=dict(
         num_classes=1, anchor_generator=dict(basesize_ratio_range=(0.2,
                                                                     0.9))))
+
 # dataset settings
 dataset_type = 'VOCDataset'
 data_root = 'data/VOCdevkit/'
@@ -48,10 +49,10 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=32,
+    samples_per_gpu=16,
     workers_per_gpu=6,
     train=dict(
-        type='RepeatDataset', times=10, dataset=dict(pipeline=train_pipeline)),)
+        type='RepeatDataset', times=2, dataset=dict(pipeline=train_pipeline)),)
     # val=dict(pipeline=test_pipeline),
     # test=dict(pipeline=test_pipeline))
 # optimizer

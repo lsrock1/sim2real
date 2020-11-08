@@ -19,6 +19,12 @@ class VOCDataset(XMLDataset):
             self.year = 2012
         else:
             raise ValueError('Cannot infer dataset year from img_prefix')
+        valid_inds = self._filter_imgs()
+        self.data_infos = [self.data_infos[i] for i in valid_inds]
+        if self.proposals is not None:
+            self.proposals = [self.proposals[i] for i in valid_inds]
+        # set group flag for the sampler
+        self._set_group_flag()
 
     def evaluate(self,
                  results,
