@@ -1,0 +1,1 @@
+python tools/test.py configs/vital/faster_rcnn_r50_fpn_1x_airplane.py work_dirs/faster_rcnn_r50_fpn_1x_airplane/epoch_12.pth --show-dir ./airplanes/

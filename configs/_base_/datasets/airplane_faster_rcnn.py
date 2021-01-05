@@ -71,7 +71,8 @@ data = dict(
                 ann_file='data/VOCdevkit/' + 'VOC2007/ImageSets/Main/test.txt',
                 img_prefix='data/VOCdevkit/' + 'VOC2007/',
                 pipeline=test_pipeline)],
-            separate_eval=True))
+            separate_eval=True,
+            pipeline=test_pipeline))
 # evaluation = dict(interval=1, metric='mAP')
 model = dict(
     type='FasterRCNN',

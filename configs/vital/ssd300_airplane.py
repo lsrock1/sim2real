@@ -1,11 +1,10 @@
 _base_ = [
-    '../_base_/models/ssd300.py', '../_base_/datasets/airplane.py',
+    '../_base_/models/ssd300vital.py', '../_base_/datasets/airplane_ssd.py',
     '../_base_/default_runtime.py'
 ]
 model = dict(
     bbox_head=dict(
-        num_classes=1, anchor_generator=dict(basesize_ratio_range=(0.2,
-                                                                    0.9))))
+        num_classes=1))
 
 # dataset settings
 dataset_type = 'VOCDataset'
@@ -50,9 +49,42 @@ test_pipeline = [
 ]
 data = dict(
     samples_per_gpu=16,
-    workers_per_gpu=6,
+    workers_per_gpu=12,
     train=dict(
-        type='RepeatDataset', times=2, dataset=dict(pipeline=train_pipeline)),)
+        type='RepeatDataset', times=2, dataset=dict(pipeline=train_pipeline)),
+    val=dict(
+        type='ConcatDataset',
+        datasets=[
+            dict(
+                type='CocoDataset',
+                classes=('airplane',),
+                ann_file='data/coco/annotations/instances_val2017.json',
+                img_prefix='data/coco/val2017/',
+                pipeline=test_pipeline),
+            dict(
+                type='VOCDataset',
+                classes=('aeroplane',),
+                ann_file='data/VOCdevkit/' + 'VOC2007/ImageSets/Main/test.txt',
+                img_prefix='data/VOCdevkit/' + 'VOC2007/',
+                pipeline=test_pipeline)],
+        seperate_eval=True),
+    test=dict(
+        type='ConcatDataset',
+        datasets=[
+            dict(
+                type='CocoDataset',
+                classes=('airplane',),
+                ann_file='data/coco/annotations/instances_val2017.json',
+                img_prefix='data/coco/val2017/',
+                pipeline=test_pipeline),
+            dict(
+                type='VOCDataset',
+                classes=('aeroplane',),
+                ann_file='data/VOCdevkit/' + 'VOC2007/ImageSets/Main/test.txt',
+                img_prefix='data/VOCdevkit/' + 'VOC2007/',
+                pipeline=test_pipeline)],
+            separate_eval=True,
+            pipeline=test_pipeline))
     # val=dict(pipeline=test_pipeline),
     # test=dict(pipeline=test_pipeline))
 # optimizer
