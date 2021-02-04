@@ -1,23 +1,60 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.models as models
 from mmcv.cnn import VGG, constant_init, kaiming_init, normal_init, xavier_init
 from mmcv.runner import load_checkpoint
 
 from mmdet.utils import get_root_logger
 from ..builder import BACKBONES
+from torch.autograd import Function
 
 
-class MLP(nn.Module):
-    def __init__(self, input_size, output_size, hidden_size):
-        super(MLP, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(input_size, hidden_size), nn.ReLU(True),
-            nn.Linear(hidden_size, output_size), nn.LogSoftmax(1)
-        )
+class ReverseLayerF(Function):
 
+    @staticmethod
+    def forward(ctx, x, alpha):
+        ctx.alpha = alpha
+
+        return x.view_as(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        output = grad_output.neg() * ctx.alpha
+
+        return output, None
+
+
+class Expand(nn.Module):
     def forward(self, x):
-        return self.layers(x)
+        bs, c = x.shape
+        return x.reshape(bs, c, 1, 1)
+
+
+class SNR(nn.Module):
+    def __init__(self, dim):
+        super(SNR, self).__init__()
+        self.dim = dim
+        self.instance_norm = nn.InstanceNorm2d(self.dim)
+        self.se = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1), nn.Flatten(),
+            nn.Linear(dim, dim//16), nn.ReLU(True),
+            nn.Linear(dim//16, dim), nn.Sigmoid(), Expand())
+
+    def forward(self, input):
+        f = self.instance_norm(input)
+        r = input - f
+        attn = self.se(r)
+        r_plus = r * attn
+        f_plus = r_plus + f
+
+        if self.training:
+            r_minus = r * (1 - attn)
+            f_minus = r_minus + f#.detach()
+
+            return [f_plus, ReverseLayerF.apply(f_minus, 0.05)]
+
+        return f_plus
 
 
 @BACKBONES.register_module()
@@ -56,6 +93,8 @@ class SSDVGGVITAL(VGG):
                  out_feature_indices=(22, 34),
                  l2_norm_scale=20.):
         # TODO: in_channels for mmcv.VGG
+        # super(SSDVGGVITAL, self).__init__()
+        # self.features = models.vgg16().features[:-1]
         super(SSDVGGVITAL, self).__init__(
             depth,
             with_last_pool=with_last_pool,
@@ -80,10 +119,16 @@ class SSDVGGVITAL(VGG):
 
         self.inplanes = 1024
         self.extra = self._make_extra_layers(self.extra_setting[input_size])
-        # self.l2_norm = L2Norm(
-        #     self.features[out_feature_indices[0] - 1].out_channels,
-        #     l2_norm_scale)
-        self.instance_norm = nn.ModuleList([nn.InstanceNorm2d(c) for c in (512, 1024, 512, 256, 256, 256)])
+        self.l2_norm = L2Norm(
+            self.features[out_feature_indices[0] - 1].out_channels,
+            l2_norm_scale)
+        self.l2_norm_minus = L2Norm(
+            self.features[out_feature_indices[0] - 1].out_channels,
+            l2_norm_scale)
+        # self.norms = nn.ModuleList([nn.BatchNorm2d(c) for c in (512, 1024, 512, 256, 256, 256)])
+        # self.norms_minus = nn.ModuleList([nn.BatchNorm2d(c) for c in (512, 1024, 512, 256, 256, 256)])
+        self.snr = nn.ModuleList([SNR(c) for c in (512, 1024, 512, 256, 256, 256)])
+        # self.instance_norm = nn.ModuleList([nn.InstanceNorm2d(c) for c in (512, 1024, 512, 256, 256, 256)])
 
     def init_weights(self, pretrained=None):
         """Initialize the weights in backbone.
@@ -110,7 +155,8 @@ class SSDVGGVITAL(VGG):
             if isinstance(m, nn.Conv2d):
                 xavier_init(m, distribution='uniform')
 
-        # constant_init(self.l2_norm, self.l2_norm.scale)
+        constant_init(self.l2_norm, self.l2_norm.scale)
+        constant_init(self.l2_norm_minus, self.l2_norm_minus.scale)
 
     def forward(self, x):
         """Forward function."""
@@ -119,15 +165,26 @@ class SSDVGGVITAL(VGG):
         for i, layer in enumerate(self.features):
             x = layer(x)
             if i in self.out_feature_indices:
-                outs.append(self.instance_norm[idx](x))
+                x = self.snr[idx](x)
+                outs.append(x)
+                if self.training:
+                    x = x[0]
                 idx += 1
         for i, layer in enumerate(self.extra):
             x = F.relu(layer(x), inplace=True)
             if i % 2 == 1:
-                outs.append(self.instance_norm[idx](x))
+                x = self.snr[idx](x)
+                outs.append(x)
+                if self.training:
+                    x = x[0]
                 idx += 1
-        # outs[0] = self.l2_norm(outs[0])
-        
+        if self.training:
+            # outs = [[n(o[0]), n_m(o[1])] for n, n_m, o in zip(self.norms, self.norms_minus, outs)]
+            outs[0][0] = self.l2_norm(outs[0][0])
+            outs[0][1] = self.l2_norm_minus(outs[0][1])
+        else:
+            # outs = [n(o) for n, o in zip(self.norms, outs)]
+            outs[0] = self.l2_norm(outs[0])
         if len(outs) == 1:
             return outs[0]
         else:

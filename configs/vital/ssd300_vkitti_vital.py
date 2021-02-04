@@ -1,14 +1,17 @@
 _base_ = [
-    '../_base_/models/ssd300vital.py', '../_base_/datasets/airplane_ssd.py',
+    '../_base_/models/ssd300vital.py', '../_base_/datasets/vkitti.py',
     '../_base_/default_runtime.py'
 ]
 model = dict(
     bbox_head=dict(
-        num_classes=1))
+        num_classes=6))
 
 # dataset settings
-dataset_type = 'VOCDataset'
-data_root = 'data/VOCdevkit/'
+dataset_type = 'VKITTIDataset'
+data_root = 'data/vkitti/'
+test_dataset_type = 'KITTIDataset'
+test_data_root = 'data/kitti/voc/VOC2012/'
+
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[1, 1, 1], to_rgb=True)
 train_pipeline = [
     dict(type='LoadImageFromFile', to_float32=True),
@@ -51,42 +54,23 @@ data = dict(
     samples_per_gpu=16,
     workers_per_gpu=6,
     train=dict(
-        type='RepeatDataset', times=2, dataset=dict(pipeline=train_pipeline)),
+        type='RepeatDataset',
+        times=3,
+        dataset=dict(
+            type=dataset_type,
+            ann_file=data_root + 'ImageSets/Main/trainval.txt',
+            img_prefix=data_root,
+            pipeline=train_pipeline)),
     val=dict(
-        type='ConcatDataset',
-        datasets=[
-            dict(
-                type='CocoDataset',
-                classes=('airplane',),
-                ann_file='data/coco/annotations/instances_val2017.json',
-                img_prefix='data/coco/val2017/',
-                pipeline=test_pipeline),
-            dict(
-                type='VOCDataset',
-                classes=('aeroplane',),
-                ann_file='data/VOCdevkit/' + 'VOC2007/ImageSets/Main/test.txt',
-                img_prefix='data/VOCdevkit/' + 'VOC2007/',
-                pipeline=test_pipeline)],
-        seperate_eval=True),
+        type=test_dataset_type,
+        ann_file=test_data_root + 'ImageSets/Main/test.txt',
+        img_prefix=test_data_root,
+        pipeline=test_pipeline),
     test=dict(
-        type='ConcatDataset',
-        datasets=[
-            dict(
-                type='CocoDataset',
-                classes=('airplane',),
-                ann_file='data/coco/annotations/instances_val2017.json',
-                img_prefix='data/coco/val2017/',
-                pipeline=test_pipeline),
-            dict(
-                type='VOCDataset',
-                classes=('aeroplane',),
-                ann_file='data/VOCdevkit/' + 'VOC2007/ImageSets/Main/test.txt',
-                img_prefix='data/VOCdevkit/' + 'VOC2007/',
-                pipeline=test_pipeline)],
-            separate_eval=True,
-            pipeline=test_pipeline))
-    # val=dict(pipeline=test_pipeline),
-    # test=dict(pipeline=test_pipeline))
+        type=test_dataset_type,
+        ann_file=test_data_root + 'ImageSets/Main/test.txt',
+        img_prefix=test_data_root,
+        pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=1e-3, momentum=0.9, weight_decay=5e-4)
 optimizer_config = dict()

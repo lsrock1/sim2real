@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0,1,2,3 bash ./tools/dist_train.sh configs/vital/ssd300_kitti.py 4

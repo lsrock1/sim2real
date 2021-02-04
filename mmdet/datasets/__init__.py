@@ -12,6 +12,8 @@ from .voc import VOCDataset
 from .wider_face import WIDERFaceDataset
 from .xml_style import XMLDataset
 from .airplane import AIRPLANEDataset
+from .kitti import KITTIDataset
+from .vkitti import VKITTIDataset
 
 
 __all__ = [
@@ -20,5 +22,6 @@ __all__ = [
     'LVISV1Dataset', 'GroupSampler', 'DistributedGroupSampler',
     'DistributedSampler', 'build_dataloader', 'ConcatDataset', 'RepeatDataset',
     'ClassBalancedDataset', 'WIDERFaceDataset', 'DATASETS', 'PIPELINES',
-    'build_dataset', 'replace_ImageToTensor', 'AIRPLANEDataset', 'KFashionDataset'
+    'build_dataset', 'replace_ImageToTensor', 'AIRPLANEDataset', 'KFashionDataset',
+    'KITTIDataset', 'VKITTIDataset'
 ]
