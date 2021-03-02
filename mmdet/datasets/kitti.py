@@ -6,7 +6,7 @@ from .xml_style import XMLDataset
 @DATASETS.register_module()
 class KITTIDataset(XMLDataset):
 
-    CLASSES = ('car', 'Van', 'Truck', 'Tram', 'person', 'Cyclist')
+    CLASSES = ('car', )#'Van', 'Truck', 'Tram', 'person', 'Cyclist')
 
     def __init__(self, **kwargs):
         super(KITTIDataset, self).__init__(**kwargs)
@@ -65,7 +65,7 @@ class KITTIDataset(XMLDataset):
             # if self.year == 2007:
             #     ds_name = 'voc07'
             # else:
-            ds_name = self.CLASSES
+            ds_name = self.CLASSES#[:1]
             mean_ap, _ = eval_map(
                 results,
                 annotations,

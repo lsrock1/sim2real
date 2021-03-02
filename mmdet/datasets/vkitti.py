@@ -6,7 +6,7 @@ from .xml_style import XMLDataset
 @DATASETS.register_module()
 class VKITTIDataset(XMLDataset):
 
-    CLASSES = ('car', 'Van', 'Truck', 'Tram', 'person', 'Cyclist')
+    CLASSES = ('car',)# 'Van', 'Truck', 'Tram', 'person', 'Cyclist')
 
     def __init__(self, **kwargs):
         super(VKITTIDataset, self).__init__(**kwargs)

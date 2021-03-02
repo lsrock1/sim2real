@@ -4,7 +4,7 @@ _base_ = [
 ]
 model = dict(
     bbox_head=dict(
-        num_classes=6))
+        num_classes=1))
 
 # dataset settings
 dataset_type = 'VKITTIDataset'
@@ -55,10 +55,10 @@ data = dict(
     workers_per_gpu=6,
     train=dict(
         type='RepeatDataset',
-        times=3,
+        times=1,
         dataset=dict(
             type=dataset_type,
-            ann_file=data_root + 'ImageSets/Main/trainval.txt',
+            ann_file=data_root + 'ImageSets/Main/train.txt',
             img_prefix=data_root,
             pipeline=train_pipeline)),
     val=dict(

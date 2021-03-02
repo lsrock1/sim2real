@@ -596,6 +596,6 @@ class SSDVITALHead(AnchorHead):
             all_bbox_weights,
             num_total_samples=num_total_pos)
 
-        losses_cls = [p + m for p, m in zip(losses_cls, losses_cls_minus)]
-        losses_bbox = [p + m for p, m in zip(losses_bbox, losses_bbox_minus)]
+        losses_cls = [(p + m)/2 for p, m in zip(losses_cls, losses_cls_minus)]
+        losses_bbox = [(p + m)/2 for p, m in zip(losses_bbox, losses_bbox_minus)]
         return dict(loss_cls=losses_cls, loss_bbox=losses_bbox)

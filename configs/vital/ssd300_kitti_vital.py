@@ -1,5 +1,5 @@
 _base_ = [
-    '../_base_/models/ssd300.py', '../_base_/datasets/kitti.py',
+    '../_base_/models/ssd300vital.py', '../_base_/datasets/kitti.py',
     '../_base_/default_runtime.py'
 ]
 model = dict(

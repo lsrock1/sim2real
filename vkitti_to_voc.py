@@ -45,6 +45,7 @@ def read_annotation_text(text_path):
                 continue
             l = l.split()
             frame, tid, label, truncated, occluded, alpha, l, t, r, b = l[:10]
+            print(label)
             if label in labels:
                 label = mapping[label]
                 annotations[int(frame)].append({
@@ -78,11 +79,11 @@ def main():
                     os.path.join(path, 'Annotations', f'{str(idx).zfill(6)}.xml')
                 )
                 idx += 1
-                print('write ', )
+                # print('write ', )
     
     with open(os.path.join(path, 'ImageSets/Main', 'train.txt'), 'w') as f:
         for i in range(idx):
-            f.write(f'{i}\n')
+            f.write(f'{str(i).zfill(6)}\n')
 
 
 if __name__ == '__main__':
